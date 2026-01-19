@@ -10,7 +10,7 @@ interface ProcessingStatusProps {
 const statusMessages: Record<Status, string> = {
   idle: '',
   'fetching-metadata': 'Fetching video information...',
-  'fetching-transcript': 'Retrieving transcript...',
+  'fetching-transcript': 'Retrieving transcript (may take up to 2 minutes if audio transcription is needed)...',
   summarizing: 'Generating summary...',
   complete: 'Done!',
   error: '',

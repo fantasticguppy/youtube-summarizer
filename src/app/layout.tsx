@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+// Allow up to 5 minutes for server actions (AssemblyAI transcription can take 30-130+ seconds)
+// This is required for Vercel deployment
+// Note: Vercel Hobby plan max is 60s, Pro plan allows up to 300s
+export const maxDuration = 300;
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

@@ -6,7 +6,7 @@ import { VideoPreview } from '@/components/video-preview';
 import { ProcessingStatus } from '@/components/processing-status';
 import { ResultsTabs } from '@/components/results-tabs';
 import { processVideo } from '@/actions/process-video';
-import { VideoMetadata, ProcessingStatus as Status } from '@/types';
+import { VideoMetadata, ProcessingStatus as Status, TranscriptSource } from '@/types';
 
 export default function Home() {
   const [status, setStatus] = useState<Status>('idle');
@@ -14,6 +14,8 @@ export default function Home() {
   const [metadata, setMetadata] = useState<VideoMetadata | null>(null);
   const [transcript, setTranscript] = useState<string>('');
   const [summary, setSummary] = useState<string>('');
+  const [transcriptSource, setTranscriptSource] = useState<TranscriptSource>('youtube');
+  const [hasSpeakers, setHasSpeakers] = useState(false);
 
   const handleSubmit = useCallback(async (videoId: string, url: string) => {
     // Reset state
@@ -21,8 +23,11 @@ export default function Home() {
     setMetadata(null);
     setTranscript('');
     setSummary('');
+    setTranscriptSource('youtube');
+    setHasSpeakers(false);
 
     // Step 1: Process video (metadata + transcript)
+    // Note: This shows 'fetching-transcript' which may take 30-130s if AssemblyAI fallback is used
     setStatus('fetching-metadata');
 
     const result = await processVideo(url);
@@ -38,6 +43,8 @@ export default function Home() {
 
     setMetadata(result.metadata);
     setTranscript(result.transcript);
+    setTranscriptSource(result.transcriptSource);
+    setHasSpeakers(result.hasSpeakers);
     setStatus('summarizing');
 
     // Step 2: Stream summarization
@@ -117,6 +124,8 @@ export default function Home() {
           <ResultsTabs
             summary={summary}
             transcript={transcript}
+            transcriptSource={transcriptSource}
+            hasSpeakers={hasSpeakers}
             isSummarizing={status === 'summarizing'}
           />
         )}

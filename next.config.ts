@@ -15,6 +15,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',  // Audio buffers can be large
+    },
+  },
 };
 
 export default nextConfig;
