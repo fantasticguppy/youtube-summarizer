@@ -10,7 +10,7 @@ This phase adds robustness to the YouTube summarizer by implementing AssemblyAI 
 
 The primary challenge is that the existing `@distube/ytdl-core` library in the project was **archived on August 16, 2025**. The recommended replacement is `youtubei.js` (v16.0.1), which provides audio stream URL extraction. AssemblyAI's SDK can accept URLs directly or buffers, simplifying the audio extraction flow.
 
-AssemblyAI's async transcription API typically completes in under 45 seconds even for hour-long audio (1 hour 3 minutes in ~35 seconds). The SDK handles file uploads, polling, and returns strongly-typed TypeScript responses including speaker-labeled utterances.
+AssemblyAI's async transcription API typically completes in under 45 seconds even for hour-long audio (1 hour file in ~35 seconds). The SDK handles file uploads, polling, and returns strongly-typed TypeScript responses including speaker-labeled utterances.
 
 **Primary recommendation:** Use AssemblyAI SDK with audio URL from youtubei.js (or buffer if URL approach fails), enable `speaker_labels: true`, and format utterances as "Speaker A:", "Speaker B:" turn-by-turn display.
 
@@ -22,7 +22,7 @@ The established libraries/tools for this domain:
 | Library | Version | Purpose | Why Standard |
 |---------|---------|---------|--------------|
 | assemblyai | latest | Speech-to-text transcription with diarization | Official SDK, TypeScript native, handles upload/polling |
-| youtubei.js | v16.0.1 | YouTube audio URL extraction | Actively maintained, replaces archived ytdl-core |
+| youtubei.js | v16.0.1 | YouTube audio URL extraction | Actively maintained (14.5k dependents), replaces archived ytdl-core |
 
 ### Supporting
 | Library | Version | Purpose | When to Use |
@@ -33,7 +33,7 @@ The established libraries/tools for this domain:
 | Instead of | Could Use | Tradeoff |
 |------------|-----------|----------|
 | youtubei.js | Keep @distube/ytdl-core | Already installed but archived Aug 2025, will break unpredictably |
-| AssemblyAI | Deepgram, Google STT | AssemblyAI has best diarization accuracy (2.9% error rate) |
+| AssemblyAI | Deepgram, Google STT | AssemblyAI has excellent diarization accuracy and simple SDK |
 | URL to AssemblyAI | Buffer upload | URLs are simpler but may have auth/expiry issues |
 
 **Installation:**
@@ -178,7 +178,7 @@ Problems that look simple but have existing solutions:
 | Problem | Don't Build | Use Instead | Why |
 |---------|-------------|-------------|-----|
 | Speech-to-text | Custom Whisper integration | AssemblyAI SDK | Handles audio formats, encoding, error retry |
-| Speaker detection | Custom diarization | AssemblyAI `speaker_labels` | Industry-leading 2.9% error rate |
+| Speaker detection | Custom diarization | AssemblyAI `speaker_labels` | Industry-leading accuracy |
 | Audio URL extraction | Custom YouTube scraping | youtubei.js | Handles YouTube's changing APIs and deciphering |
 | Transcript polling | Manual setInterval loop | AssemblyAI SDK `transcribe()` | Built-in polling with configurable intervals |
 | Retry logic | Manual retry loops | AssemblyAI SDK built-in | Handles transient errors gracefully |
@@ -191,7 +191,11 @@ Problems that look simple but have existing solutions:
 **What goes wrong:** AssemblyAI transcription takes 30-130+ seconds but function times out
 **Why it happens:** Default timeout may be insufficient for long transcriptions
 **How to avoid:**
-- Vercel with Fluid Compute (default): 300s (5 min) default on all plans
+- Vercel with Fluid Compute (enabled by default):
+  - Hobby: 300s (5 min) max
+  - Pro: 800s (13 min) max
+  - Enterprise: 800s (13 min) max
+- Without Fluid Compute: Hobby 60s, Pro 300s
 - Add `export const maxDuration = 300;` to page or route handler for explicit control
 - For longer videos, consider using `submit()` + client polling instead of blocking `transcribe()`
 **Warning signs:** 504 Gateway Timeout errors in production
@@ -207,7 +211,7 @@ Problems that look simple but have existing solutions:
 **Why it happens:** Base rate $0.15/hour + speaker diarization adds $0.02/hour = $0.17/hour total
 **How to avoid:**
 - Only use AssemblyAI as fallback (YouTube captions are free)
-- Free tier includes $50 credits (~290 hours with diarization)
+- Free tier includes up to 185 hours of pre-recorded audio transcription
 - Track usage with AssemblyAI dashboard
 **Warning signs:** Many videos hitting AssemblyAI fallback (check transcript source tracking)
 
@@ -383,15 +387,16 @@ Things that couldn't be fully resolved:
 
 ### Primary (HIGH confidence)
 - [AssemblyAI Node SDK GitHub](https://github.com/AssemblyAI/assemblyai-node-sdk) - SDK usage, types, examples
-- [AssemblyAI Speaker Diarization Docs](https://www.assemblyai.com/docs/pre-recorded-audio/speaker-diarization) - Utterance format, speaker labels
-- [AssemblyAI Pricing](https://www.assemblyai.com/pricing) - $0.15/hr + $0.02/hr diarization, $50 free credits
-- [AssemblyAI FAQ: Transcription Time](https://www.assemblyai.com/docs/faq/how-long-does-it-take-to-transcribe-a-file) - Processing benchmarks (45s for 1hr)
-- [Vercel Function Duration](https://vercel.com/docs/functions/configuring-functions/duration) - maxDuration configuration, Fluid Compute 300s default
-- [youtubei.js GitHub](https://github.com/LuanRT/YouTube.js) - v16.0.1, audio extraction
+- [AssemblyAI Speaker Diarization Docs](https://www.assemblyai.com/docs/pre-recorded-audio/speaker-diarization) - Utterance format, speaker labels (capital letters A, B, C)
+- [AssemblyAI Pricing](https://www.assemblyai.com/pricing) - $0.15/hr + $0.02/hr diarization, 185 hours free
+- [AssemblyAI FAQ: Transcription Time](https://www.assemblyai.com/docs/faq/how-long-does-it-take-to-transcribe-a-file) - Processing benchmarks (35s for 1hr, ~2min for 3hr)
+- [Vercel Function Duration](https://vercel.com/docs/functions/configuring-functions/duration) - maxDuration configuration, Fluid Compute limits by plan
+- [youtubei.js GitHub](https://github.com/LuanRT/YouTube.js) - v16.0.1 (Oct 2025), audio extraction, 14.5k dependents
+- [@distube/ytdl-core GitHub](https://github.com/distubejs/ytdl-core) - Archived August 16, 2025, recommends youtubei.js
 
 ### Secondary (MEDIUM confidence)
 - [youtubei.js npm](https://www.npmjs.com/package/youtubei.js) - Installation, version info
-- [@distube/ytdl-core npm](https://www.npmjs.com/package/@distube/ytdl-core) - Archived status (Aug 2025)
+- [ytjs.dev Guide](https://ytjs.dev/guide/getting-started) - Innertube initialization, chooseFormat API
 - [AssemblyAI SDK Reference](https://assemblyai.github.io/assemblyai-node-sdk/) - TypeScript types
 
 ### Tertiary (LOW confidence)
