@@ -5,8 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
 interface UrlInputProps {
-  onSubmit: (videoId: string) => void;
-  loading?: boolean;
+  onSubmit: (videoId: string, url: string) => void;
+  isLoading?: boolean;
 }
 
 // Regex to extract video ID from various YouTube URL formats
@@ -34,7 +34,7 @@ function extractVideoId(url: string): string | null {
   return null;
 }
 
-export function UrlInput({ onSubmit, loading = false }: UrlInputProps) {
+export function UrlInput({ onSubmit, isLoading = false }: UrlInputProps) {
   const [url, setUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +49,7 @@ export function UrlInput({ onSubmit, loading = false }: UrlInputProps) {
       return;
     }
 
-    onSubmit(videoId);
+    onSubmit(videoId, url.trim());
   };
 
   return (
@@ -63,11 +63,11 @@ export function UrlInput({ onSubmit, loading = false }: UrlInputProps) {
             setUrl(e.target.value);
             if (error) setError(null);
           }}
-          disabled={loading}
+          disabled={isLoading}
           className="flex-1"
         />
-        <Button type="submit" disabled={loading || !url.trim()}>
-          {loading ? 'Loading...' : 'Summarize'}
+        <Button type="submit" disabled={isLoading || !url.trim()}>
+          {isLoading ? 'Loading...' : 'Summarize'}
         </Button>
       </div>
       {error && (
