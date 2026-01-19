@@ -44,3 +44,16 @@ export interface TranscriptResult {
   utterances?: SpeakerUtterance[];       // Speaker-labeled utterances (AssemblyAI only)
   hasSpeakers: boolean;                  // True if multiple speakers detected
 }
+
+export interface HistoryEntry {
+  id?: number;                           // Auto-incremented primary key
+  videoId: string;                       // YouTube video ID (indexed for dedup)
+  url: string;                           // Original URL user entered
+  metadata: VideoMetadata;               // Title, author, thumbnail
+  transcript: string;                    // Formatted transcript text
+  transcriptSource: TranscriptSource;    // 'youtube' | 'assemblyai'
+  hasSpeakers: boolean;                  // Speaker diarization available
+  summary: string;                       // AI-generated summary
+  keyPoints: string;                     // AI-generated key points
+  processedAt: Date;                     // When processed (indexed for sorting)
+}
