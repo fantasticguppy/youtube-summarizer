@@ -71,3 +71,26 @@ export async function saveToHistory(
     }
   }
 }
+
+/**
+ * Load a specific video from history by videoId.
+ */
+export async function loadFromHistory(videoId: string): Promise<HistoryEntry | undefined> {
+  try {
+    return await db.history.where('videoId').equals(videoId).first();
+  } catch (error) {
+    console.error('Failed to load from history:', error);
+    return undefined;
+  }
+}
+
+/**
+ * Delete a video from history by videoId.
+ */
+export async function deleteFromHistory(videoId: string): Promise<void> {
+  try {
+    await db.history.where('videoId').equals(videoId).delete();
+  } catch (error) {
+    console.error('Failed to delete from history:', error);
+  }
+}
