@@ -4,19 +4,20 @@ import { openai } from '@ai-sdk/openai';
 export const maxDuration = 60; // Allow up to 60 seconds for long transcripts
 
 export async function POST(req: Request) {
-  const { transcript, videoTitle } = await req.json();
+  try {
+    const { transcript, videoTitle } = await req.json();
 
-  if (!transcript || typeof transcript !== 'string') {
-    return new Response(JSON.stringify({ error: 'Transcript is required' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+    if (!transcript || typeof transcript !== 'string' || transcript.trim().length === 0) {
+      return new Response(JSON.stringify({ error: 'Transcript is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-  const result = streamText({
-    model: openai('gpt-4o'),
-    system: `You are an expert at summarizing video content. Create structured summaries that are clear, accurate, and actionable. Only include information explicitly stated in the transcript - do not add external information or make assumptions.`,
-    prompt: `Summarize the following transcript from the video "${videoTitle}".
+    const result = streamText({
+      model: openai('gpt-4o'),
+      system: `You are an expert at summarizing video content. Create structured summaries that are clear, accurate, and actionable. Only include information explicitly stated in the transcript - do not add external information or make assumptions.`,
+      prompt: `Summarize the following transcript from the video "${videoTitle}".
 
 Provide your response in this exact structure using markdown:
 
@@ -33,8 +34,15 @@ Provide your response in this exact structure using markdown:
 
 TRANSCRIPT:
 ${transcript}`,
-    maxOutputTokens: 2000,
-  });
+      maxOutputTokens: 2000,
+    });
 
-  return result.toTextStreamResponse();
+    return result.toTextStreamResponse();
+  } catch (error) {
+    console.error('Summarize API error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to generate summary' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 }
