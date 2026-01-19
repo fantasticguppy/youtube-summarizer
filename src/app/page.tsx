@@ -5,9 +5,11 @@ import { UrlInput } from '@/components/url-input';
 import { VideoPreview } from '@/components/video-preview';
 import { ProcessingStatus } from '@/components/processing-status';
 import { ResultsTabs } from '@/components/results-tabs';
+import { Header } from '@/components/header';
 import { processVideo } from '@/actions/process-video';
 import { saveToHistory } from '@/lib/db';
-import { VideoMetadata, ProcessingStatus as Status, TranscriptSource } from '@/types';
+import { useVideoHistory } from '@/hooks/use-video-history';
+import { VideoMetadata, ProcessingStatus as Status, TranscriptSource, HistoryEntry } from '@/types';
 
 export default function Home() {
   const [status, setStatus] = useState<Status>('idle');
@@ -18,6 +20,9 @@ export default function Home() {
   const [keyPoints, setKeyPoints] = useState<string>('');
   const [transcriptSource, setTranscriptSource] = useState<TranscriptSource>('youtube');
   const [hasSpeakers, setHasSpeakers] = useState(false);
+  const [currentVideoId, setCurrentVideoId] = useState<string | null>(null);
+
+  const { history, isLoading: historyLoading, removeVideo } = useVideoHistory();
 
   const handleSubmit = useCallback(async (videoId: string, url: string) => {
     // Reset state
@@ -114,6 +119,7 @@ export default function Home() {
       ]);
 
       setStatus('complete');
+      setCurrentVideoId(result.videoId);
 
       // Save to history after successful processing (fire-and-forget)
       saveToHistory(
@@ -132,15 +138,41 @@ export default function Home() {
     }
   }, []);
 
+  const handleSelectHistory = useCallback((video: HistoryEntry) => {
+    // Restore video state without re-processing
+    setMetadata(video.metadata);
+    setTranscript(video.transcript);
+    setSummary(video.summary);
+    setKeyPoints(video.keyPoints);
+    setTranscriptSource(video.transcriptSource);
+    setHasSpeakers(video.hasSpeakers);
+    setCurrentVideoId(video.videoId);
+    setStatus('complete');
+    setError(null);
+  }, []);
+
+  const handleDeleteHistory = useCallback(async (videoId: string) => {
+    await removeVideo(videoId);
+    // If currently viewing this video, clear the display
+    if (currentVideoId === videoId) {
+      setMetadata(null);
+      setTranscript('');
+      setSummary('');
+      setKeyPoints('');
+      setStatus('idle');
+      setCurrentVideoId(null);
+    }
+  }, [removeVideo, currentVideoId]);
+
   return (
     <main className="min-h-screen bg-background">
       <div className="container max-w-3xl mx-auto py-8 px-4 space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">YouTube Summarizer</h1>
-          <p className="text-muted-foreground">
-            Paste a YouTube URL to get a transcript and AI-generated summary
-          </p>
-        </div>
+        <Header
+          history={history}
+          historyLoading={historyLoading}
+          onSelectVideo={handleSelectHistory}
+          onDeleteVideo={handleDeleteHistory}
+        />
 
         <UrlInput
           onSubmit={handleSubmit}
