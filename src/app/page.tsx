@@ -6,6 +6,7 @@ import { VideoPreview } from '@/components/video-preview';
 import { ProcessingStatus } from '@/components/processing-status';
 import { ResultsTabs } from '@/components/results-tabs';
 import { processVideo } from '@/actions/process-video';
+import { saveToHistory } from '@/lib/db';
 import { VideoMetadata, ProcessingStatus as Status, TranscriptSource } from '@/types';
 
 export default function Home() {
@@ -70,6 +71,10 @@ export default function Home() {
         }),
       });
 
+      // Track final values for saving to history
+      let finalSummary = '';
+      let finalKeyPoints = '';
+
       // Process both streams in parallel using IIFEs
       await Promise.all([
         (async () => {
@@ -87,6 +92,7 @@ export default function Home() {
             accumulated += chunk;
             setSummary(accumulated);
           }
+          finalSummary = accumulated;
         })(),
         (async () => {
           const response = await keyPointsFetch;
@@ -103,10 +109,23 @@ export default function Home() {
             accumulated += chunk;
             setKeyPoints(accumulated);
           }
+          finalKeyPoints = accumulated;
         })()
       ]);
 
       setStatus('complete');
+
+      // Save to history after successful processing (fire-and-forget)
+      saveToHistory(
+        result.videoId,
+        url,
+        result.metadata,
+        result.transcript,
+        result.transcriptSource,
+        result.hasSpeakers,
+        finalSummary,
+        finalKeyPoints
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate summary');
       setStatus('error');
