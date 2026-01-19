@@ -21,7 +21,7 @@ The established libraries/tools for this domain:
 ### Core
 | Library | Version | Purpose | Why Standard |
 |---------|---------|---------|--------------|
-| idb-keyval | ^6.2.1 | IndexedDB wrapper | 295-573 bytes, promise-based, structured-clonable data, used by 1M+ projects |
+| idb-keyval | ^6.2.2 | IndexedDB wrapper | 295-573 bytes, promise-based, structured-clonable data, tree-shakeable |
 
 ### Supporting
 | Library | Version | Purpose | When to Use |
@@ -263,6 +263,24 @@ await del('myKey');
 const allKeys = await keys();
 ```
 
+### Batch Operations (More Efficient)
+```typescript
+// Source: https://github.com/jakearchibald/idb-keyval
+import { getMany, setMany, delMany } from 'idb-keyval';
+
+// Set multiple values atomically
+await setMany([
+  ['video:abc123', videoData1],
+  ['video:def456', videoData2],
+]);
+
+// Get multiple values
+const videos = await getMany(['video:abc123', 'video:def456']);
+
+// Delete multiple keys
+await delMany(['video:abc123', 'video:def456']);
+```
+
 ### Atomic Updates (Avoid Race Conditions)
 ```typescript
 // Source: https://github.com/jakearchibald/idb-keyval
@@ -359,6 +377,7 @@ Things that couldn't be fully resolved:
 
 ### Primary (HIGH confidence)
 - [idb-keyval GitHub](https://github.com/jakearchibald/idb-keyval) - Full API documentation, usage patterns
+- [idb-keyval npm](https://www.npmjs.com/package/idb-keyval) - Version 6.2.2 verified
 - [Next.js Hydration Error Docs](https://nextjs.org/docs/messages/react-hydration-error) - SSR/client mismatch handling
 
 ### Secondary (MEDIUM confidence)
@@ -372,10 +391,11 @@ Things that couldn't be fully resolved:
 ## Metadata
 
 **Confidence breakdown:**
-- Standard stack: HIGH - idb-keyval is widely used, well-documented, minimal
+- Standard stack: HIGH - idb-keyval is widely used, well-documented, minimal (verified via npm registry)
 - Architecture: HIGH - Patterns are standard React/Next.js practices
 - Pitfalls: HIGH - Well-documented issues with storage and SSR
 - Data structure: HIGH - Based on existing types in codebase
 
 **Research date:** 2026-01-19
+**Verified:** 2026-01-19 (idb-keyval v6.2.2 confirmed, API validated)
 **Valid until:** 2026-02-19 (stable domain, 30 days)
