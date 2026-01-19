@@ -1,18 +1,20 @@
 # Phase 4: Persistence - Research
 
 **Researched:** 2026-01-19
-**Domain:** Client-side storage, browser persistence, IndexedDB
+**Domain:** Client-side storage (IndexedDB), slide-out panel UI (shadcn/ui Sheet)
 **Confidence:** HIGH
 
 ## Summary
 
 This phase adds local persistence so users can save and revisit previously processed videos without re-processing. The app currently stores all state in React component state, which is lost on page refresh or navigation.
 
-For this use case (storing structured video data including transcripts and summaries), **IndexedDB with idb-keyval wrapper** is the recommended approach. Transcripts can be several KB to 100+ KB, making localStorage's 5MB limit risky for power users. IndexedDB has virtually unlimited storage (50% of available disk), stores structured data natively without JSON serialization, and idb-keyval provides a minimal async API.
+For storage, **IndexedDB with idb-keyval wrapper** is the recommended approach. Transcripts can be several KB to 100+ KB, making localStorage's 5MB limit risky for power users. IndexedDB has virtually unlimited storage (50% of available disk), stores structured data natively without JSON serialization, and idb-keyval provides a minimal async API (295-573 bytes).
 
-The key architectural concern is **hydration mismatch** - since Next.js pre-renders on the server where IndexedDB doesn't exist, the component must render a consistent initial state, then hydrate from storage in useEffect.
+For the UI, the user decided on a **slide-out panel triggered by a History button in the header**. The panel overlays the current view without navigating away. The **shadcn/ui Sheet component** is the standard solution - it's built on Radix UI Dialog with proper focus management, ARIA semantics, and smooth animations.
 
-**Primary recommendation:** Use idb-keyval for persistence, implement a custom `useVideoHistory` hook with proper SSR handling, store complete video records indexed by videoId.
+The key architectural concern is **hydration mismatch** - since Next.js pre-renders on the server where IndexedDB doesn't exist, components must render a consistent initial state, then hydrate from storage in useEffect.
+
+**Primary recommendation:** Use idb-keyval for persistence, shadcn/ui Sheet for slide-out panel, implement a custom `useVideoHistory` hook with proper SSR handling, add header with History button trigger.
 
 ## Standard Stack
 
@@ -22,22 +24,24 @@ The established libraries/tools for this domain:
 | Library | Version | Purpose | Why Standard |
 |---------|---------|---------|--------------|
 | idb-keyval | ^6.2.2 | IndexedDB wrapper | 295-573 bytes, promise-based, structured-clonable data, tree-shakeable |
+| @radix-ui/react-dialog | ^1.1.6 | Sheet foundation | shadcn/ui Sheet is built on this, handles accessibility |
 
 ### Supporting
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| idb | ^8.0.2 | Full IndexedDB wrapper | Only if need indexes, complex queries, or transactions (not needed here) |
+| lucide-react | ^0.562.0 | Icons | Already installed, use History icon for trigger button |
 
 ### Alternatives Considered
 | Instead of | Could Use | Tradeoff |
 |------------|-----------|----------|
 | idb-keyval | localStorage | Simpler API but 5MB limit, must stringify/parse JSON, synchronous (blocks UI) |
-| idb-keyval | Zustand persist | Heavier, adds state management when React state already works |
-| idb-keyval | react-indexed-db | More features but more complexity, less maintained |
+| Sheet | Drawer | Drawer is for mobile bottom sheet, Sheet is for side panel overlay |
+| Sheet | Dialog/Modal | Modal blocks full view, Sheet keeps main content partially visible |
 
 **Installation:**
 ```bash
 npm install idb-keyval
+npx shadcn@latest add sheet
 ```
 
 ## Architecture Patterns
@@ -47,13 +51,14 @@ npm install idb-keyval
 src/
 ├── lib/
 │   └── storage/
-│       ├── index.ts           # Export public API
-│       ├── video-store.ts     # idb-keyval operations for videos
-│       └── types.ts           # Storage-specific types (or use src/types/index.ts)
+│       └── video-store.ts     # idb-keyval operations for videos
 ├── hooks/
 │   └── use-video-history.ts   # React hook for history state
 ├── components/
-│   └── history-list.tsx       # UI for displaying video history
+│   ├── ui/
+│   │   └── sheet.tsx          # shadcn Sheet component (auto-generated)
+│   ├── header.tsx             # App header with History button
+│   └── history-panel.tsx      # Sheet content with video list
 └── types/
     └── index.ts               # Add SavedVideo type here
 ```
@@ -84,7 +89,7 @@ export interface SavedVideo {
 ```typescript
 // src/lib/storage/video-store.ts
 import { get, set, del, keys, getMany, delMany } from 'idb-keyval';
-import { SavedVideo } from '@/types';
+import type { SavedVideo } from '@/types';
 
 const VIDEO_PREFIX = 'video:';
 
@@ -126,7 +131,7 @@ export async function deleteAllVideos(): Promise<void> {
 ```typescript
 // src/hooks/use-video-history.ts
 import { useState, useEffect, useCallback } from 'react';
-import { SavedVideo } from '@/types';
+import type { SavedVideo } from '@/types';
 import { getAllVideos, saveVideo, deleteVideo, getVideo } from '@/lib/storage/video-store';
 
 export function useVideoHistory() {
@@ -137,6 +142,7 @@ export function useVideoHistory() {
   useEffect(() => {
     getAllVideos()
       .then(setHistory)
+      .catch(console.error)
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -168,25 +174,119 @@ export function useVideoHistory() {
 }
 ```
 
-### Pattern 4: History List Component
-**What:** Displays saved videos as clickable list items
-**When to use:** On the main page, shows past videos
+### Pattern 4: Sheet-Based History Panel (User Decision)
+**What:** Slide-out panel triggered by History button in header
+**When to use:** User decided this is the navigation pattern
 
 ```typescript
-// Basic structure for history-list.tsx
-interface HistoryListProps {
+// src/components/history-panel.tsx
+'use client';
+
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { History, Trash2 } from 'lucide-react';
+import type { SavedVideo } from '@/types';
+
+interface HistoryPanelProps {
   videos: SavedVideo[];
   onSelect: (video: SavedVideo) => void;
   onDelete: (videoId: string) => void;
   isLoading?: boolean;
 }
 
-// Each list item shows:
-// - Thumbnail (small)
-// - Title (truncated)
-// - Author
-// - Saved date (relative: "2 hours ago")
-// - Delete button (icon)
+export function HistoryPanel({ videos, onSelect, onDelete, isLoading }: HistoryPanelProps) {
+  return (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="icon">
+          <History className="h-4 w-4" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="right" className="w-[400px] sm:w-[540px]">
+        <SheetHeader>
+          <SheetTitle>History</SheetTitle>
+        </SheetHeader>
+        <div className="mt-4 space-y-2">
+          {isLoading ? (
+            // Loading skeletons
+            <div>Loading...</div>
+          ) : videos.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No videos yet</p>
+          ) : (
+            videos.map(video => (
+              <div
+                key={video.videoId}
+                className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-accent"
+                onClick={() => onSelect(video)}
+              >
+                <img
+                  src={video.metadata.thumbnailUrl}
+                  alt=""
+                  className="w-20 h-12 object-cover rounded"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{video.metadata.title}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {getRelativeTime(video.savedAt)}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(video.videoId);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+```
+
+### Pattern 5: Header Component with History Trigger
+**What:** App header containing the History button
+**When to use:** Rendered at top of main page
+
+```typescript
+// src/components/header.tsx
+'use client';
+
+import { HistoryPanel } from './history-panel';
+import type { SavedVideo } from '@/types';
+
+interface HeaderProps {
+  history: SavedVideo[];
+  historyLoading: boolean;
+  onSelectVideo: (video: SavedVideo) => void;
+  onDeleteVideo: (videoId: string) => void;
+}
+
+export function Header({ history, historyLoading, onSelectVideo, onDeleteVideo }: HeaderProps) {
+  return (
+    <header className="flex items-center justify-between">
+      <h1 className="text-3xl font-bold">YouTube Summarizer</h1>
+      <HistoryPanel
+        videos={history}
+        onSelect={onSelectVideo}
+        onDelete={onDeleteVideo}
+        isLoading={historyLoading}
+      />
+    </header>
+  );
+}
 ```
 
 ### Anti-Patterns to Avoid
@@ -194,6 +294,7 @@ interface HistoryListProps {
 - **Synchronous reads during render:** Causes hydration mismatch. Always use useEffect for storage reads.
 - **Storing in React state only:** State is lost on refresh - defeats the purpose.
 - **Storing raw segments array:** The `rawSegments` array can be huge. Store only the formatted `transcript` string.
+- **Using Dialog instead of Sheet:** Dialog (modal) blocks the entire view. Sheet slides in from side, keeping context visible.
 
 ## Don't Hand-Roll
 
@@ -202,6 +303,7 @@ Problems that look simple but have existing solutions:
 | Problem | Don't Build | Use Instead | Why |
 |---------|-------------|-------------|-----|
 | IndexedDB wrapper | Custom IDB code | idb-keyval | IDB API is complex, async, needs version/upgrade handling |
+| Slide-out panel | Custom overlay/animation | shadcn/ui Sheet | Focus management, ARIA, escape key, click-outside all handled |
 | Relative time formatting | Custom date math | Native Intl.RelativeTimeFormat | Built into browsers, handles i18n |
 | Async state sync | Manual Promise handling | The hook pattern above | Race conditions, error handling |
 
@@ -240,6 +342,12 @@ Problems that look simple but have existing solutions:
 **Why it happens:** Private browsing mode, storage quota exceeded, IDB unavailable
 **How to avoid:** Wrap storage operations in try/catch, show user feedback
 **Warning signs:** Videos not appearing in history after processing
+
+### Pitfall 6: Sheet Not Closing After Selection
+**What goes wrong:** User selects video from history but sheet stays open
+**Why it happens:** Selection handler doesn't close the sheet
+**How to avoid:** Use controlled Sheet state, close on selection
+**Warning signs:** User has to manually close sheet after every selection
 
 ## Code Examples
 
@@ -281,17 +389,74 @@ const videos = await getMany(['video:abc123', 'video:def456']);
 await delMany(['video:abc123', 'video:def456']);
 ```
 
-### Atomic Updates (Avoid Race Conditions)
+### shadcn/ui Sheet Basic Usage
 ```typescript
-// Source: https://github.com/jakearchibald/idb-keyval
-import { update } from 'idb-keyval';
+// Source: https://ui.shadcn.com/docs/components/sheet
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 
-// Wrong: get then set (race condition)
-const val = await get('counter');
-await set('counter', val + 1);
+export function SheetDemo() {
+  return (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline">Open</Button>
+      </SheetTrigger>
+      <SheetContent side="right">
+        <SheetHeader>
+          <SheetTitle>Sheet Title</SheetTitle>
+          <SheetDescription>
+            Sheet description text here.
+          </SheetDescription>
+        </SheetHeader>
+        {/* Content here */}
+        <SheetFooter>
+          <SheetClose asChild>
+            <Button type="submit">Save changes</Button>
+          </SheetClose>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  )
+}
+```
 
-// Right: atomic update
-await update('counter', (val) => (val || 0) + 1);
+### Controlled Sheet (for closing on selection)
+```typescript
+// Source: Radix UI Dialog documentation
+import { useState } from 'react';
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+
+export function ControlledSheet({ onSelect }: { onSelect: (item: Item) => void }) {
+  const [open, setOpen] = useState(false);
+
+  const handleSelect = (item: Item) => {
+    onSelect(item);
+    setOpen(false); // Close sheet after selection
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button>Open</Button>
+      </SheetTrigger>
+      <SheetContent>
+        {items.map(item => (
+          <div key={item.id} onClick={() => handleSelect(item)}>
+            {item.name}
+          </div>
+        ))}
+      </SheetContent>
+    </Sheet>
+  );
+}
 ```
 
 ### SSR-Safe Component Pattern
@@ -328,9 +493,8 @@ export function HistoryList() {
 ### Relative Time Formatting
 ```typescript
 // Native browser API - no library needed
-const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-
 function getRelativeTime(timestamp: number): string {
+  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
   const now = Date.now();
   const diff = timestamp - now;
   const diffMinutes = Math.round(diff / 60000);
@@ -354,10 +518,12 @@ function getRelativeTime(timestamp: number): string {
 | localStorage for everything | IndexedDB for structured data | ~2020 | Can store large objects, no JSON serialization |
 | Heavy ORMs (localForage) | Minimal wrappers (idb-keyval) | ~2022 | Smaller bundles, simpler API |
 | Custom IDB boilerplate | idb-keyval/idb libraries | ~2018 | No version management needed for simple use |
+| Custom slide-out panels | shadcn/ui Sheet | ~2023 | Built-in accessibility, animations, focus management |
 
 **Deprecated/outdated:**
 - Web SQL: Deprecated, removed from browsers
 - localForage: Still works but heavier than idb-keyval (7KB vs 573 bytes)
+- Custom overlay components: Use shadcn/ui Sheet for proper accessibility
 
 ## Open Questions
 
@@ -373,29 +539,35 @@ Things that couldn't be fully resolved:
    - What's unclear: Whether this is needed for MVP
    - Recommendation: Defer to future phase, structure data to be JSON-exportable
 
+3. **Badge/Count on History Button**
+   - What we know: Could show number of saved videos on the History button
+   - What's unclear: Whether this adds value or visual clutter
+   - Recommendation: Claude's discretion - simple count badge if history > 0
+
 ## Sources
 
 ### Primary (HIGH confidence)
 - [idb-keyval GitHub](https://github.com/jakearchibald/idb-keyval) - Full API documentation, usage patterns
-- [idb-keyval npm](https://www.npmjs.com/package/idb-keyval) - Version 6.2.2 verified
+- [idb-keyval npm](https://www.npmjs.com/package/idb-keyval) - Version 6.2.2 verified (published May 2025)
+- [shadcn/ui Sheet](https://ui.shadcn.com/docs/components/sheet) - Official documentation, installation
 - [Next.js Hydration Error Docs](https://nextjs.org/docs/messages/react-hydration-error) - SSR/client mismatch handling
 
 ### Secondary (MEDIUM confidence)
 - [MDN Client-side Storage](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Client-side_APIs/Client-side_storage) - IndexedDB vs localStorage comparison
-- [LogRocket Hydration Errors](https://blog.logrocket.com/resolving-hydration-mismatch-errors-next-js/) - Next.js patterns
+- [Radix UI Dialog](https://www.radix-ui.com/primitives/docs/components/dialog) - Sheet foundation component
 
 ### Tertiary (LOW confidence)
 - [DEV.to LocalStorage vs IndexedDB](https://dev.to/tene/localstorage-vs-indexeddb-javascript-guide-storage-limits-best-practices-fl5) - Storage limits comparison
-- [Medium IndexedDB Guide](https://medium.com/@artyom.danielyan/a-simple-guide-to-indexeddb-in-react-8ff73bbf17b4) - React integration patterns
 
 ## Metadata
 
 **Confidence breakdown:**
-- Standard stack: HIGH - idb-keyval is widely used, well-documented, minimal (verified via npm registry)
+- Standard stack: HIGH - idb-keyval and shadcn/ui Sheet are widely used, well-documented
 - Architecture: HIGH - Patterns are standard React/Next.js practices
 - Pitfalls: HIGH - Well-documented issues with storage and SSR
 - Data structure: HIGH - Based on existing types in codebase
+- UI patterns: HIGH - shadcn/ui Sheet is the established solution for slide-out panels
 
 **Research date:** 2026-01-19
-**Verified:** 2026-01-19 (idb-keyval v6.2.2 confirmed, API validated)
+**Verified:** 2026-01-19 (idb-keyval v6.2.2 confirmed, shadcn/ui Sheet verified)
 **Valid until:** 2026-02-19 (stable domain, 30 days)
