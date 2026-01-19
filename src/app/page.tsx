@@ -14,6 +14,7 @@ export default function Home() {
   const [metadata, setMetadata] = useState<VideoMetadata | null>(null);
   const [transcript, setTranscript] = useState<string>('');
   const [summary, setSummary] = useState<string>('');
+  const [keyPoints, setKeyPoints] = useState<string>('');
   const [transcriptSource, setTranscriptSource] = useState<TranscriptSource>('youtube');
   const [hasSpeakers, setHasSpeakers] = useState(false);
 
@@ -23,6 +24,7 @@ export default function Home() {
     setMetadata(null);
     setTranscript('');
     setSummary('');
+    setKeyPoints('');
     setTranscriptSource('youtube');
     setHasSpeakers(false);
 
@@ -47,9 +49,10 @@ export default function Home() {
     setHasSpeakers(result.hasSpeakers);
     setStatus('summarizing');
 
-    // Step 2: Stream summarization
+    // Step 2: Stream summarization and key points in parallel
     try {
-      const response = await fetch('/api/summarize', {
+      // Start both fetch requests without awaiting
+      const summaryFetch = fetch('/api/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -58,28 +61,50 @@ export default function Home() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to generate summary');
-      }
+      const keyPointsFetch = fetch('/api/key-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcript: result.transcript,
+          videoTitle: result.metadata.title,
+        }),
+      });
 
-      // Handle streaming response
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
+      // Process both streams in parallel using IIFEs
+      await Promise.all([
+        (async () => {
+          const response = await summaryFetch;
+          if (!response.ok) throw new Error('Failed to generate summary');
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+          if (!reader) throw new Error('No response body for summary');
 
-      if (!reader) {
-        throw new Error('No response body');
-      }
+          let accumulated = '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            accumulated += chunk;
+            setSummary(accumulated);
+          }
+        })(),
+        (async () => {
+          const response = await keyPointsFetch;
+          if (!response.ok) throw new Error('Failed to generate key points');
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+          if (!reader) throw new Error('No response body for key points');
 
-      let accumulatedSummary = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        accumulatedSummary += chunk;
-        setSummary(accumulatedSummary);
-      }
+          let accumulated = '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            accumulated += chunk;
+            setKeyPoints(accumulated);
+          }
+        })()
+      ]);
 
       setStatus('complete');
     } catch (err) {
@@ -120,9 +145,10 @@ export default function Home() {
           />
         )}
 
-        {(transcript || summary) && (
+        {(transcript || summary || keyPoints) && (
           <ResultsTabs
             summary={summary}
+            keyPoints={keyPoints}
             transcript={transcript}
             transcriptSource={transcriptSource}
             hasSpeakers={hasSpeakers}
