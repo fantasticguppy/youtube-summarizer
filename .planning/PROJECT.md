@@ -8,6 +8,15 @@
 
 A fully functional YouTube transcript and summarization tool. Users paste a URL, get video metadata, transcript (via YouTube captions or AssemblyAI fallback), structured summary, and key points extraction. History is persisted locally for instant replay.
 
+## Current Milestone: v1.1 Outline
+
+**Goal:** Add comprehensive Outline tab and improve transcript readability so users never need to read raw transcripts.
+
+**Target features:**
+- Outline tab with hierarchical topical breakdown, timestamps, and near-complete coverage
+- Transcript improvements: paragraph formatting, inline timestamps, speaker labels when available
+- Support for 1-2+ hour videos
+
 ## What This Is
 
 A web application that takes a YouTube video URL and produces a complete transcript plus AI-generated summaries. Users paste a URL, and the app delivers the full transcript, a structured summary, and key points breakdown. The tool uses official APIs to avoid bot detection issues that plague scraping approaches.
@@ -33,7 +42,16 @@ A web application that takes a YouTube video URL and produces a complete transcr
 - [x] App saves history of processed videos — v1
 - [x] User can revisit past videos without re-processing — v1
 
-### Active (v2 Candidates)
+### Active (v1.1)
+
+- [ ] Outline tab with comprehensive topical breakdown organized by theme
+- [ ] Outline includes timestamps for each section/subsection
+- [ ] Outline has near-complete coverage (every distinct point captured)
+- [ ] Transcript formatted with paragraph breaks for readability
+- [ ] Transcript includes inline timestamps
+- [ ] Transcript shows speaker labels when available
+
+### Deferred (v2 Candidates)
 
 - [ ] Cheat sheet output for technical content (actionable reference)
 - [ ] Download as markdown file
@@ -82,4 +100,4 @@ A web application that takes a YouTube video URL and produces a complete transcr
 | Dynamic imports for AssemblyAI | Workaround for Next.js 16 bundler | Workaround |
 
 ---
-*Last updated: 2026-01-19 after v1 milestone*
+*Last updated: 2026-01-19 after starting v1.1 milestone*
