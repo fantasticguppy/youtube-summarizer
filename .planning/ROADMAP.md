@@ -40,11 +40,11 @@
   1. User sees inline timestamps throughout the transcript view (every 30-60 seconds)
   2. User can click any timestamp in transcript to open YouTube at that moment
   3. Transcript data retains timestamp information for downstream use (outline generation)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
+- [ ] 05-01-PLAN.md — Data model: add segments to HistoryEntry + Dexie v2 migration
+- [ ] 05-02-PLAN.md — UI: clickable inline timestamps in transcript view
 
 #### Phase 6: Core Outline Generation
 **Goal**: Single-pass outline generation with streaming structured output for videos under 60 minutes
@@ -114,7 +114,7 @@ Plans:
 | 2. Robustness | v1.0 | 2/2 | Complete | 2026-01-19 |
 | 3. Summary Enhancement | v1.0 | 1/1 | Complete | 2026-01-19 |
 | 4. Persistence | v1.0 | 2/2 | Complete | 2026-01-19 |
-| 5. Timestamp Infrastructure | v1.1 | 0/TBD | Not started | - |
+| 5. Timestamp Infrastructure | v1.1 | 0/2 | Planned | - |
 | 6. Core Outline Generation | v1.1 | 0/TBD | Not started | - |
 | 7. Outline UI Integration | v1.1 | 0/TBD | Not started | - |
 | 8. Long Video Support | v1.1 | 0/TBD | Not started | - |
