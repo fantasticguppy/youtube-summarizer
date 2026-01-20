@@ -9,7 +9,7 @@ Requirements for Outline milestone. Each maps to roadmap phases.
 
 ### Outline Generation
 
-- [ ] **OUTL-01**: App generates hierarchical outline with 3 levels (topics → sections → points)
+- [ ] **OUTL-01**: App generates hierarchical outline with 3 levels (topics > sections > points)
 - [ ] **OUTL-02**: Outline includes timestamps on each section and subsection
 - [ ] **OUTL-03**: Outline provides near-complete coverage (every substantive topic represented)
 - [ ] **OUTL-04**: Outline is organized by theme/topic, not chronologically
@@ -63,25 +63,25 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OUTL-01 | TBD | Pending |
-| OUTL-02 | TBD | Pending |
-| OUTL-03 | TBD | Pending |
-| OUTL-04 | TBD | Pending |
-| OUTL-05 | TBD | Pending |
-| OUTL-06 | TBD | Pending |
-| OUTL-07 | TBD | Pending |
-| OUTL-08 | TBD | Pending |
-| TRNS-01 | TBD | Pending |
-| TRNS-02 | TBD | Pending |
-| TRNS-03 | TBD | Pending |
-| TRNS-04 | TBD | Pending |
-| LIVE-01 | TBD | Pending |
+| OUTL-01 | Phase 6 | Pending |
+| OUTL-02 | Phase 6 | Pending |
+| OUTL-03 | Phase 6, 8 | Pending |
+| OUTL-04 | Phase 6 | Pending |
+| OUTL-05 | Phase 6 | Pending |
+| OUTL-06 | Phase 7 | Pending |
+| OUTL-07 | Phase 7 | Pending |
+| OUTL-08 | Phase 8 | Pending |
+| TRNS-01 | Phase 9 | Pending |
+| TRNS-02 | Phase 5 | Pending |
+| TRNS-03 | Phase 9 | Pending |
+| TRNS-04 | Phase 5 | Pending |
+| LIVE-01 | Phase 9 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 13 total
-- Mapped to phases: 0
-- Unmapped: 13 ⚠️
+- Mapped to phases: 13/13
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-19*
-*Last updated: 2026-01-19 after initial definition*
+*Last updated: 2026-01-19 after roadmap creation*
