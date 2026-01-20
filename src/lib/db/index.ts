@@ -6,11 +6,22 @@ class AppDatabase extends Dexie {
 
   constructor() {
     super('YouTubeSummarizerDB');
+
+    // Version 1: Original schema
     this.version(1).stores({
-      // ++id = auto-increment primary key
-      // videoId = indexed for duplicate lookup
-      // processedAt = indexed for sorting by recency
       history: '++id, videoId, processedAt'
+    });
+
+    // Version 2: Add outline field (no index change needed, just data)
+    this.version(2).stores({
+      history: '++id, videoId, processedAt'
+    }).upgrade(tx => {
+      // Add empty outline to existing entries
+      return tx.table('history').toCollection().modify(entry => {
+        if (!entry.outline) {
+          entry.outline = '';
+        }
+      });
     });
   }
 }
@@ -29,7 +40,8 @@ export async function saveToHistory(
   transcriptSource: TranscriptSource,
   hasSpeakers: boolean,
   summary: string,
-  keyPoints: string
+  keyPoints: string,
+  outline: string
 ): Promise<void> {
   try {
     // Check for existing entry to avoid duplicates
@@ -45,6 +57,7 @@ export async function saveToHistory(
         hasSpeakers,
         summary,
         keyPoints,
+        outline,
         processedAt: new Date(),
       });
     } else {
@@ -58,6 +71,7 @@ export async function saveToHistory(
         hasSpeakers,
         summary,
         keyPoints,
+        outline,
         processedAt: new Date(),
       });
     }

@@ -55,5 +55,6 @@ export interface HistoryEntry {
   hasSpeakers: boolean;                  // Speaker diarization available
   summary: string;                       // AI-generated summary
   keyPoints: string;                     // AI-generated key points
+  outline: string;                       // AI-generated detailed outline
   processedAt: Date;                     // When processed (indexed for sorting)
 }

@@ -18,6 +18,7 @@ export default function Home() {
   const [transcript, setTranscript] = useState<string>('');
   const [summary, setSummary] = useState<string>('');
   const [keyPoints, setKeyPoints] = useState<string>('');
+  const [outline, setOutline] = useState<string>('');
   const [transcriptSource, setTranscriptSource] = useState<TranscriptSource>('youtube');
   const [hasSpeakers, setHasSpeakers] = useState(false);
   const [currentVideoId, setCurrentVideoId] = useState<string | null>(null);
@@ -31,6 +32,7 @@ export default function Home() {
     setTranscript('');
     setSummary('');
     setKeyPoints('');
+    setOutline('');
     setTranscriptSource('youtube');
     setHasSpeakers(false);
 
@@ -55,9 +57,9 @@ export default function Home() {
     setHasSpeakers(result.hasSpeakers);
     setStatus('summarizing');
 
-    // Step 2: Stream summarization and key points in parallel
+    // Step 2: Stream summarization, key points, and outline in parallel
     try {
-      // Start both fetch requests without awaiting
+      // Start all fetch requests without awaiting
       const summaryFetch = fetch('/api/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -76,11 +78,21 @@ export default function Home() {
         }),
       });
 
+      const outlineFetch = fetch('/api/outline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcript: result.transcript,
+          videoTitle: result.metadata.title,
+        }),
+      });
+
       // Track final values for saving to history
       let finalSummary = '';
       let finalKeyPoints = '';
+      let finalOutline = '';
 
-      // Process both streams in parallel using IIFEs
+      // Process all streams in parallel using IIFEs
       await Promise.all([
         (async () => {
           const response = await summaryFetch;
@@ -115,6 +127,23 @@ export default function Home() {
             setKeyPoints(accumulated);
           }
           finalKeyPoints = accumulated;
+        })(),
+        (async () => {
+          const response = await outlineFetch;
+          if (!response.ok) throw new Error('Failed to generate outline');
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+          if (!reader) throw new Error('No response body for outline');
+
+          let accumulated = '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            accumulated += chunk;
+            setOutline(accumulated);
+          }
+          finalOutline = accumulated;
         })()
       ]);
 
@@ -130,7 +159,8 @@ export default function Home() {
         result.transcriptSource,
         result.hasSpeakers,
         finalSummary,
-        finalKeyPoints
+        finalKeyPoints,
+        finalOutline
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate summary');
@@ -144,6 +174,7 @@ export default function Home() {
     setTranscript(video.transcript);
     setSummary(video.summary);
     setKeyPoints(video.keyPoints);
+    setOutline(video.outline || '');
     setTranscriptSource(video.transcriptSource);
     setHasSpeakers(video.hasSpeakers);
     setCurrentVideoId(video.videoId);
@@ -159,6 +190,7 @@ export default function Home() {
       setTranscript('');
       setSummary('');
       setKeyPoints('');
+      setOutline('');
       setStatus('idle');
       setCurrentVideoId(null);
     }
@@ -196,10 +228,11 @@ export default function Home() {
           />
         )}
 
-        {(transcript || summary || keyPoints) && (
+        {(transcript || summary || keyPoints || outline) && (
           <ResultsTabs
             summary={summary}
             keyPoints={keyPoints}
+            outline={outline}
             transcript={transcript}
             transcriptSource={transcriptSource}
             hasSpeakers={hasSpeakers}
