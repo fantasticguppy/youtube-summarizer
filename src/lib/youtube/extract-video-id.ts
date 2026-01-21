@@ -4,10 +4,11 @@ export function extractVideoId(url: string): string | null {
   // - https://youtu.be/VIDEO_ID
   // - https://www.youtube.com/embed/VIDEO_ID
   // - https://www.youtube.com/shorts/VIDEO_ID
+  // - https://www.youtube.com/live/VIDEO_ID
   // - With timestamps: ?v=VIDEO_ID&t=123
   // - With playlists: ?v=VIDEO_ID&list=PLxxx
 
-  const regExp = /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]*).*/;
+  const regExp = /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/|live\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]*).*/;
   const match = url.match(regExp);
 
   if (match && match[1].length === 11) {

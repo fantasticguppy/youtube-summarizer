@@ -7,16 +7,40 @@ import ytdl from '@distube/ytdl-core';
  * NOTE: This library is deprecated as of Aug 2025.
  * Plan migration to youtubei.js if extraction breaks.
  */
+
+// Max video duration for audio extraction (3 hours)
+// Longer videos would consume too much memory and AssemblyAI cost
+const MAX_DURATION_SECONDS = 3 * 60 * 60; // 10,800 seconds
+
 export async function extractAudioBuffer(videoId: string): Promise<Buffer> {
   const url = `https://www.youtube.com/watch?v=${videoId}`;
 
   try {
     const info = await ytdl.getInfo(url);
+
+    // Check video duration before downloading
+    const durationSeconds = parseInt(info.videoDetails.lengthSeconds, 10);
+    if (durationSeconds > MAX_DURATION_SECONDS) {
+      const hours = Math.floor(durationSeconds / 3600);
+      const minutes = Math.floor((durationSeconds % 3600) / 60);
+      throw new Error(
+        `Video is too long for transcription (${hours}h ${minutes}m). ` +
+        `Maximum supported duration is 3 hours. ` +
+        `Try a shorter video or one with YouTube captions.`
+      );
+    }
+
     const format = ytdl.chooseFormat(info.formats, { quality: 'highestaudio' });
 
     if (!format) {
       throw new Error('No audio format available for this video');
     }
+
+    // Log estimated size for monitoring
+    const estimatedSizeMB = format.contentLength
+      ? Math.round(parseInt(format.contentLength, 10) / (1024 * 1024))
+      : 'unknown';
+    console.log(`Downloading audio: ~${estimatedSizeMB}MB, duration: ${Math.round(durationSeconds / 60)}min`);
 
     const chunks: Buffer[] = [];
     const stream = ytdl.downloadFromInfo(info, { format });
