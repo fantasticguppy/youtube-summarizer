@@ -61,6 +61,9 @@ export async function processVideo(url: string): Promise<ProcessVideoResult | Pr
       utterances = result.utterances;
       hasSpeakers = result.hasSpeakers;
     } catch (assemblyError) {
+      // Log the actual AssemblyAI error for debugging
+      console.error('AssemblyAI fallback failed:', assemblyError);
+
       // Both methods failed - return original YouTube error for clarity
       return {
         success: false,
