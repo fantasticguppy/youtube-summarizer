@@ -14,22 +14,24 @@ A Next.js 16 app that summarizes YouTube videos. Users paste a video URL and get
 - **Database**: Dexie (IndexedDB) for local history
 - **AI**: OpenAI via Vercel AI SDK for summarization
 - **Transcription**: YouTube captions (primary), AssemblyAI (fallback with speaker diarization)
-- **Audio Extraction**: youtubei.js (replaced ytdl-core Jan 2026)
+- **Audio Extraction**: youtubei.js + yt-dlp fallback
 
 ## Architecture
 
 ### Transcript Pipeline
 1. **YouTube Captions** (fast, free): `youtube-caption-extractor` library
-2. **AssemblyAI Fallback** (when no captions): Extract audio via youtubei.js, transcribe with speaker labels
+2. **AssemblyAI Fallback** (when no captions): Extract audio, transcribe with speaker labels
 
 ### Audio Extraction (`src/lib/youtube/extract-audio.ts`)
-Uses youtubei.js with multi-client fallback chain:
-- TV_EMBEDDED (most reliable)
-- WEB
-- ANDROID
-- iOS
+Two-tier fallback system:
 
-This approach handles YouTube's frequent API changes by trying multiple client types.
+**Tier 1: youtubei.js** - Tries multiple client types:
+- TV, TV_EMBEDDED, MWEB, WEB, ANDROID, iOS
+
+**Tier 2: yt-dlp** - External CLI fallback when youtubei.js fails:
+- Uses Safari cookies for authentication
+- Requires `--extractor-args "youtube:player_client=android,web"` to bypass YouTube's SABR streaming restrictions
+- Falls back to any available format if audio-only unavailable
 
 ### Key Files
 ```
@@ -48,7 +50,7 @@ src/
 │   └── ...                   # UI components
 ├── lib/
 │   ├── youtube/
-│   │   ├── extract-audio.ts  # Audio download (youtubei.js)
+│   │   ├── extract-audio.ts  # Audio download (youtubei.js + yt-dlp)
 │   │   ├── fetch-transcript.ts
 │   │   ├── fetch-metadata.ts
 │   │   └── extract-video-id.ts
@@ -64,19 +66,31 @@ OPENAI_API_KEY=          # For summarization
 ASSEMBLYAI_API_KEY=      # For fallback transcription
 ```
 
+## System Requirements
+- **yt-dlp**: Required for fallback audio extraction (`brew install yt-dlp`)
+- **Safari**: Must be logged into YouTube for cookie-based auth
+
 ## Known Issues & Gotchas
-- YouTube frequently changes their API; youtubei.js client fallback helps but may need updates
+- YouTube frequently changes their API; multi-tier fallback helps but may need updates
 - Videos without captions trigger AssemblyAI which adds 30-130s processing time
 - Max video duration: 3 hours (memory/cost constraint)
+- Some videos require yt-dlp fallback due to YouTube's PO Token / SABR streaming restrictions
+- yt-dlp uses Safari cookies - user must be logged into YouTube in Safari
 
 ## Recent Changes
-- **Jan 2026**: Migrated from `@distube/ytdl-core` to `youtubei.js` due to YouTube breaking signature decryption
+- **Jan 28, 2026**: Added yt-dlp as fallback when youtubei.js fails (handles SABR streaming)
+- **Jan 28, 2026**: Added `--extractor-args "youtube:player_client=android,web"` for yt-dlp
+- **Jan 2026**: Migrated from `@distube/ytdl-core` to `youtubei.js`
 
 ## Running Locally
 ```bash
 npm install
+brew install yt-dlp  # if not installed
 npm run dev
 ```
 
-## Test Video
-`https://youtu.be/yCCIDNvp5dk` - Good test video for AssemblyAI fallback
+Access from iOS on same network: use the Network URL shown in terminal (e.g., `http://192.168.x.x:3000`)
+
+## Test Videos
+- `https://youtu.be/yCCIDNvp5dk` - Works with youtubei.js
+- `https://youtu.be/8lF7HmQ_RgY` - Requires yt-dlp fallback (no captions, SABR protected)
